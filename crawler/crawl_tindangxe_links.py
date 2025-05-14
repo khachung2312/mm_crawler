@@ -13,14 +13,14 @@ def get_links_from_page(page_num: int):
         return []
     
     soup = BeautifulSoup(response.text, "html.parser")
-    car_items = soup.select("div.car-item.row1, div.car-item.row2")
+    car_items = soup.select("li.car-item.row1, li.car-item.row2")  # ✅ đúng selector
 
     links = []
 
     for item in car_items:
         a_tag = item.find("a", href=True)
         if a_tag:
-            link =  "https://bonbanh.com/" + a_tag["href"]
+            link = "https://bonbanh.com/" + a_tag["href"]
             links.append(link)
 
-        return links
+    return links  

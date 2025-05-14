@@ -1,3 +1,4 @@
+
 """
 main.py
 """
@@ -10,54 +11,82 @@ from crawler.utils import (
     save_last_page,
 )
 import time
+    
 
 def main():
-    crawled_links = load_crawled_links()  # từ bonbanh_links.txt
-    last_page = get_last_page()  # ví dụ: 500
+    crawled = load_crawled_links()
+    last_page = get_last_page()
 
-    # 1. Crawl link mới từ page 1 đến gặp link đã crawl
-    new_links = []
+    #P1 Crawl từ page 1 tìm link mới, dừng ngay khi gặp link cũ ===
+    print("B1: Crawl từ đầu để tìm tin mới")
     page = 1
+    stop_at_page = None
+
     while True:
-        print(f"Crawling new links page {page}")
+        print(f"[B1] Trang {page}…")
         links = get_links_from_page(page)
         if not links:
+            print("Không còn page nữa, dừng B1")
             break
 
-        fresh_links = [l for l in links if l not in crawled_links]
-        if not fresh_links:
-            break
-
-        new_links.extend(fresh_links)
-        page += 1
-        time.sleep(1)
-
-    # 2. Lưu và crawl chi tiết các link mới
-    save_new_links(new_links)
-    for link in new_links:
-        crawl_detail(link)
-        time.sleep(1)
-
-    # 3. Tiếp tục từ page hôm qua
-    page = last_page
-    while True:
-        print(f"Continuing from old page {page}")
-        links = get_links_from_page(page)
-        if not links:
-            break
-
-        fresh_links = [l for l in links if l not in crawled_links and l not in new_links]
-        if not fresh_links:
-            page += 1
-            continue
-
-        save_new_links(fresh_links)
-        for link in fresh_links:
+        hit_old = False
+        count_new = 0  # biến đếm số lượng link trong 1 page
+        for link in links:
+            if link in crawled:
+                print("Gặp link cũ, dừng B1 tại page", page)
+                hit_old = True
+                break
             crawl_detail(link)
+            save_new_links(link)
+            crawled.add(link)
+            count_new += 1
             time.sleep(1)
 
+        
+        print(f"[B1] → Đã crawl {count_new} tin đăng ở trang {page}")
+
+        if hit_old:
+            stop_at_page = page
+            break
+
+        page += 1
+        time.sleep(1)
+        # Lưu lại page dừng (nếu không dừng vì link cũ, dùng page cuối)
+        new_last_page = max(last_page, stop_at_page or page)
+        save_last_page(new_last_page)
+        print(f"B1 kết thúc, last_page = {new_last_page}")
+
+
+    # === PHASE 2: Tiếp tục từ last_page, bỏ qua link cũ, crawl link mới ===
+    print("\nB2: Tiếp tục từ page cũ để bắt link new")
+    page = last_page
+    while True:
+        print(f"[B2] Trang {page}…")
+        links = get_links_from_page(page)
+        if not links:
+            print("Không còn page nữa, dừng B2")
+            break
+
+        any_new = False
+        count_new = 0  # Biến đếm số tin đăng của 1 trang
+        for link in links:
+            if link in crawled:
+                continue
+            crawl_detail(link)
+            save_new_links(link)
+            crawled.add(link)
+            any_new = True
+            count_new += 1
+            time.sleep(1)
+
+        print(f"[B2] → Đã crawl {count_new} tin đăng ở trang {page}")
         page += 1
         save_last_page(page)
+
+        if not any_new:
+            print("Trang này không có link mới, chuyển sang page", page)
+
+    print("Hoàn thành crawl.")
 
 if __name__ == "__main__":
     main()
